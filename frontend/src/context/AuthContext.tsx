@@ -20,20 +20,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     // Restore session on startup
-    try {
-      const saved = authService.getSavedSession();
-      if (saved && (saved.role === 'USER' || saved.role === 'RIDER' || saved.role === 'ADMIN')) {
-        setUser(saved);
-      } else {
-        authService.clearSession();
-        setUser(null);
-      }
-    } catch {
-      authService.clearSession();
-      setUser(null);
-    } finally {
-      setLoading(false);
+    const saved = authService.getSavedSession();
+    if (saved) {
+      setUser(saved);
     }
+    setLoading(false);
   }, []);
 
   const login = async (credentials: LoginCredentials, expectedRole?: Role) => {
