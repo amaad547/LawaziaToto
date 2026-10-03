@@ -107,4 +107,26 @@ export const authService = {
     this.saveSession(newUser);
     return newUser;
   },
+
+  async getAllAccounts(): Promise<AuthUser[]> {
+    try {
+      const token = this.getSavedSession()?.token;
+      const res = await fetch(`${API_BASE_URL}/admin/users`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return (data.users || []).map((u: any) => ({
+          id: String(u.id),
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          createdAt: u.created_at,
+        }));
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  },
 };

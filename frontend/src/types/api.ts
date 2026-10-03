@@ -92,6 +92,7 @@ export interface AdminUserItem {
   name: string;
   email: string;
   role: 'USER' | 'RIDER' | 'ADMIN';
-  created_at: string;
+  created_at?: string;
+  createdAt?: string;
 }
 

@@ -7,9 +7,9 @@ import { UserCheck, Search, Calendar, Clock, MapPin, ArrowRight, Loader2, User }
 
 export const PersonHistoryPage: React.FC = () => {
   const { user } = useAuth();
-  const initialName = user?.name || 'Rahul';
-  const [searchName, setSearchName] = useState<string>(initialName);
-  const [activeQuery, setActiveQuery] = useState<string>(initialName);
+  const userName = user?.name || '';
+  const [searchName, setSearchName] = useState<string>(userName || 'Rahul');
+  const [activeQuery, setActiveQuery] = useState<string>(userName || 'Rahul');
   const [history, setHistory] = useState<PersonHistoryItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searched, setSearched] = useState<boolean>(false);
@@ -20,7 +20,7 @@ export const PersonHistoryPage: React.FC = () => {
     setSearched(true);
     try {
       const data = await api.getPersonHistory(name.trim());
-      setHistory(data);
+      setHistory(Array.isArray(data) ? data : []);
       setActiveQuery(name.trim());
     } catch (err: any) {
       console.error('Failed to fetch person history:', err);
@@ -31,8 +31,10 @@ export const PersonHistoryPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchHistory(initialName);
-  }, [initialName]);
+    const defaultSearch = userName || 'Rahul';
+    setSearchName(defaultSearch);
+    fetchHistory(defaultSearch);
+  }, [userName]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,17 +45,19 @@ export const PersonHistoryPage: React.FC = () => {
     <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
       <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
         <h1 style={{ fontSize: '2rem', marginBottom: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem' }}>
-          <UserCheck color="var(--primary)" /> Person History Lookup
+          <UserCheck color="var(--primary)" /> Ride History
         </h1>
         <p style={{ color: 'var(--text-muted)' }}>
-          Search ride history by passenger name to see past trips and boarding statuses.
+          {userName
+            ? `Viewing trips and boarding records for ${userName}. You can also search for other passengers.`
+            : 'Search ride history by passenger name to see past trips and boarding statuses.'}
         </p>
       </div>
 
       {/* Search Input Box */}
       <form onSubmit={handleSearch} className="glass-panel" style={{ padding: '1.25rem', marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '220px' }}>
             <User
               size={18}
               color="var(--text-muted)"
@@ -63,7 +67,7 @@ export const PersonHistoryPage: React.FC = () => {
               type="text"
               className="form-input"
               style={{ paddingLeft: '2.75rem' }}
-              placeholder="Enter person name (e.g. Rahul, Aman, Priya)"
+              placeholder="Enter passenger name (e.g. your name, Rahul, Aman)"
               value={searchName}
               onChange={(e) => setSearchName(e.target.value)}
             />
@@ -72,15 +76,30 @@ export const PersonHistoryPage: React.FC = () => {
             {loading ? <Loader2 size={18} className="spinner" style={{ width: 18, height: 18 }} /> : <Search size={18} />}
             Search
           </button>
+          {userName && searchName !== userName && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchName(userName);
+                fetchHistory(userName);
+              }}
+              className="btn btn-secondary"
+            >
+              My Trips
+            </button>
+          )}
         </div>
       </form>
 
       {/* Results Header */}
       {searched && (
-        <div style={{ marginBottom: '1.25rem' }}>
-          <h2 style={{ fontSize: '1.2rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ fontSize: '1.1rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Trips for "{activeQuery}" ({history.length})
           </h2>
+          {userName && activeQuery.toLowerCase() === userName.toLowerCase() && (
+            <span className="badge badge-accepted" style={{ fontSize: '0.75rem' }}>Your History</span>
+          )}
         </div>
       )}
 
@@ -88,32 +107,32 @@ export const PersonHistoryPage: React.FC = () => {
       {loading ? (
         <div className="glass-panel state-container">
           <div className="spinner" />
-          <p style={{ color: 'var(--text-muted)' }}>Searching trips for {searchName}...</p>
+          <p style={{ color: 'var(--text-muted)' }}>Searching trips for {activeQuery}...</p>
         </div>
       ) : history.length === 0 ? (
-        <div className="glass-panel state-container">
-          <UserCheck size={40} color="var(--text-dim)" />
-          <h3 style={{ fontSize: '1.2rem', marginTop: '0.5rem' }}>No trips found</h3>
-          <p style={{ color: 'var(--text-muted)' }}>
-            No ride history found where "{activeQuery}" appears as a passenger.
+        <div className="glass-panel state-container" style={{ padding: '2.5rem 1.5rem', textAlign: 'center' }}>
+          <UserCheck size={44} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem auto' }} />
+          <h3 style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>No trips found</h3>
+          <p style={{ color: 'var(--text-muted)', maxWidth: '420px', margin: '0 auto', fontSize: '0.95rem' }}>
+            No completed or active trips found where <strong>"{activeQuery}"</strong> appears as a passenger.
           </p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {history.map((item) => (
             <div key={item.id} className="glass-panel" style={{ padding: '1.5rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                   <h3 style={{ fontSize: '1.2rem' }}>Trip #{item.id}</h3>
                   <StatusBadge status={item.tripStatus} />
                 </div>
-                <div>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginRight: '0.5rem' }}>Boarding Status:</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Boarding:</span>
                   <StatusBadge status={item.passengerStatus} />
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
                 <div>
                   <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Route</span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, marginTop: '0.2rem' }}>

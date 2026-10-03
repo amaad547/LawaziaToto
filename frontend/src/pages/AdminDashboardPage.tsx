@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/auth';
 import { api } from '../services/api';
-import { RideRequest, AdminOverviewStats, AdminUserItem } from '../types/api';
+import { RideRequest } from '../types/api';
+import { AuthUser } from '../types/auth';
 import { StatusBadge } from '../components/StatusBadge';
 import {
   ShieldCheck,
@@ -19,22 +21,17 @@ import {
 export const AdminDashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'OVERVIEW' | 'USERS' | 'RIDERS' | 'REQUESTS' | 'TRIPS'>('OVERVIEW');
-  const [accounts, setAccounts] = useState<AdminUserItem[]>([]);
+  const [accounts, setAccounts] = useState<AuthUser[]>([]);
   const [requests, setRequests] = useState<RideRequest[]>([]);
-  const [overviewStats, setOverviewStats] = useState<AdminOverviewStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [usersList, reqList, stats] = await Promise.all([
-          api.getAdminUsers().catch(() => []),
-          api.getRequests().catch(() => []),
-          api.getAdminOverview().catch(() => null),
-        ]);
-        setAccounts(usersList);
+        const stored = await authService.getAllAccounts();
+        setAccounts(stored);
+        const reqList = await api.getRequests();
         setRequests(reqList);
-        setOverviewStats(stats);
       } catch (err) {
         console.error(err);
       } finally {

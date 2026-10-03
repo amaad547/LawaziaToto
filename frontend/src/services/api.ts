@@ -61,86 +61,95 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const api = {
   createRequest: async (payload: CreateRideRequestPayload): Promise<RideRequest> => {
-    const data = await request<{ success: boolean; request: RideRequest }>('/requests', {
+    const data = await request<any>('/requests', {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    return data.request || (data as unknown as RideRequest);
+    return data.request || data;
   },
 
   getRequests: async (mine?: boolean): Promise<RideRequest[]> => {
     const query = mine ? '?mine=true' : '';
-    const data = await request<{ success: boolean; requests: RideRequest[] }>(`/requests${query}`);
-    return data.requests || (Array.isArray(data) ? data : []);
+    const data = await request<any>(`/requests${query}`);
+    if (data && Array.isArray(data.requests)) return data.requests;
+    if (Array.isArray(data)) return data;
+    return [];
   },
 
   getCurrentTrip: async (): Promise<RideRequest | null> => {
-    const data = await request<{ success: boolean; trip: RideRequest | null }>('/trips/current');
-    return data.trip !== undefined ? data.trip : (data as unknown as RideRequest | null);
+    const data = await request<any>('/trips/current');
+    if (data && data.trip !== undefined) return data.trip;
+    return data || null;
   },
 
   acceptRequest: async (id: string): Promise<RideRequest> => {
-    const data = await request<{ success: boolean; trip: RideRequest }>(`/requests/${id}/accept`, {
+    const data = await request<any>(`/requests/${id}/accept`, {
       method: 'POST',
     });
-    return data.trip || (data as unknown as RideRequest);
+    return data.trip || data;
   },
 
   startTrip: async (id: string): Promise<RideRequest> => {
-    const data = await request<{ success: boolean; trip: RideRequest }>(`/trips/${id}/start`, {
+    const data = await request<any>(`/trips/${id}/start`, {
       method: 'POST',
     });
-    return data.trip || (data as unknown as RideRequest);
+    return data.trip || data;
   },
 
   updateBoarding: async (tripId: string, payload: BoardingUpdatePayload): Promise<RideRequest> => {
-    const data = await request<{ success: boolean; id: string; status: any; passengers: any[] }>(`/trips/${tripId}/boarding`, {
+    const data = await request<any>(`/trips/${tripId}/boarding`, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    return data as unknown as RideRequest;
+    return data.trip || data;
   },
 
   completeTrip: async (id: string): Promise<{ message: string; trip: RideRequest }> => {
-    const data = await request<{ success: boolean; message: string; trip: RideRequest }>(`/trips/${id}/complete`, {
+    const data = await request<any>(`/trips/${id}/complete`, {
       method: 'POST',
     });
     return data;
   },
 
   getPersonHistory: async (name: string): Promise<PersonHistoryItem[]> => {
-    const data = await request<{ success: boolean; history: PersonHistoryItem[] }>(`/history/person/${encodeURIComponent(name)}`);
-    return data.history || (Array.isArray(data) ? data : []);
+    const data = await request<any>(`/history/person/${encodeURIComponent(name)}`);
+    if (data && Array.isArray(data.history)) return data.history;
+    if (Array.isArray(data)) return data;
+    return [];
   },
 
   getMyHistory: async (): Promise<PersonHistoryItem[]> => {
-    const data = await request<{ success: boolean; history: PersonHistoryItem[] }>('/history/me');
-    return data.history || (Array.isArray(data) ? data : []);
+    const data = await request<any>('/history/me');
+    if (data && Array.isArray(data.history)) return data.history;
+    if (Array.isArray(data)) return data;
+    return [];
   },
 
   getRiderHistory: async (): Promise<RiderHistoryItem[]> => {
-    const data = await request<{ success: boolean; history: RiderHistoryItem[] }>('/history/rider');
-    return data.history || (Array.isArray(data) ? data : []);
+    const data = await request<any>('/history/rider');
+    if (data && Array.isArray(data.history)) return data.history;
+    if (Array.isArray(data)) return data;
+    return [];
   },
 
   // Admin APIs
   getAdminOverview: async (): Promise<AdminOverviewStats> => {
-    const data = await request<{ success: boolean; stats: AdminOverviewStats }>('/admin/overview');
-    return data.stats;
+    const data = await request<any>('/admin/overview');
+    return data.stats || data;
   },
 
   getAdminUsers: async (): Promise<AdminUserItem[]> => {
-    const data = await request<{ success: boolean; users: AdminUserItem[] }>('/admin/users');
-    return data.users || [];
+    const data = await request<any>('/admin/users');
+    return data.users || (Array.isArray(data) ? data : []);
   },
 
   getAdminRequests: async (): Promise<any[]> => {
-    const data = await request<{ success: boolean; requests: any[] }>('/admin/requests');
-    return data.requests || [];
+    const data = await request<any>('/admin/requests');
+    return data.requests || (Array.isArray(data) ? data : []);
   },
 
   getAdminTrips: async (): Promise<any[]> => {
-    const data = await request<{ success: boolean; trips: any[] }>('/admin/trips');
-    return data.trips || [];
+    const data = await request<any>('/admin/trips');
+    return data.trips || (Array.isArray(data) ? data : []);
   },
 };

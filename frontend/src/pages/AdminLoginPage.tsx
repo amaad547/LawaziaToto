@@ -94,10 +94,31 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSuccess, onSwi
               required
               className="form-input"
               style={{ paddingLeft: '2.5rem' }}
-              placeholder="e.g. admin@lawazia.edu"
+              placeholder="e.g. admin@lawazia.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
+          </div>
+          <div style={{ marginTop: '0.4rem', display: 'flex', justifyContent: 'flex-end' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setEmail('admin@lawazia.com');
+                setPassword('Admin@123456');
+              }}
+              style={{
+                background: 'rgba(245, 158, 11, 0.15)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                color: '#fbbf24',
+                padding: '0.2rem 0.6rem',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.75rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Fill Default Credentials (admin@lawazia.com)
+            </button>
           </div>
         </div>
 
