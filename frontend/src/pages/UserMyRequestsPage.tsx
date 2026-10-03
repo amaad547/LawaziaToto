@@ -18,14 +18,15 @@ export const UserMyRequestsPage: React.FC<UserMyRequestsPageProps> = ({ onReques
     const loadRequests = async () => {
       try {
         const all = await api.getRequests();
+        const safeAll = Array.isArray(all) ? all : [];
         const userNameLower = (user?.name || '').toLowerCase();
-        // Show requests where this user is either in passengers or if no matches, show all for demonstration
-        const userReqs = all.filter((r) =>
-          r.passengers.some((p) => p.name.toLowerCase() === userNameLower)
+        const userReqs = safeAll.filter((r) =>
+          Array.isArray(r.passengers) && r.passengers.some((p) => p && p.name && p.name.toLowerCase() === userNameLower)
         );
-        setRequests(userReqs.length > 0 ? userReqs : all);
+        setRequests(userReqs.length > 0 ? userReqs : safeAll);
       } catch (err) {
         console.error(err);
+        setRequests([]);
       } finally {
         setLoading(false);
       }

@@ -17,6 +17,49 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { RideRequest } from './types/api';
 import { ShieldAlert, ArrowRight } from 'lucide-react';
 
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('UI Error caught by boundary:', error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="glass-panel" style={{ maxWidth: '600px', margin: '3rem auto', padding: '2rem', textAlign: 'center' }}>
+          <h2 style={{ fontSize: '1.4rem', color: '#f87171', marginBottom: '0.5rem' }}>Unable to display this screen</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+            {this.state.error?.message || 'A temporary rendering error occurred.'}
+          </p>
+          <button
+            onClick={() => {
+              this.setState({ hasError: false, error: null });
+              window.location.reload();
+            }}
+            className="btn btn-primary"
+          >
+            Reload Screen
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const AppContent: React.FC = () => {
   const { isAuthenticated, role, loading } = useAuth();
   const [activeScreen, setActiveScreen] = useState<ScreenId>('auth-user');
@@ -26,15 +69,15 @@ const AppContent: React.FC = () => {
   React.useEffect(() => {
     if (!loading) {
       if (isAuthenticated) {
-        if (role === 'USER' && (activeScreen.startsWith('auth-') || activeScreen === 'rider-dashboard' || activeScreen === 'admin-dashboard')) {
-          setActiveScreen('user-dashboard');
-        } else if (role === 'RIDER' && (activeScreen.startsWith('auth-') || activeScreen === 'user-dashboard' || activeScreen === 'admin-dashboard')) {
-          setActiveScreen('rider-dashboard');
-        } else if (role === 'ADMIN' && (activeScreen.startsWith('auth-') || activeScreen !== 'admin-dashboard')) {
-          setActiveScreen('admin-dashboard');
+        // If user just logged in from any auth-* screen, direct them to their role's dashboard
+        if (activeScreen.startsWith('auth-')) {
+          if (role === 'USER') setActiveScreen('user-dashboard');
+          else if (role === 'RIDER') setActiveScreen('rider-dashboard');
+          else if (role === 'ADMIN') setActiveScreen('admin-dashboard');
         }
       } else {
-        if (!activeScreen.startsWith('auth-')) {
+        // If not authenticated and on a protected screen (other than public history), send to user login
+        if (!activeScreen.startsWith('auth-') && activeScreen !== 'person-history') {
           setActiveScreen('auth-user');
         }
       }
@@ -50,7 +93,7 @@ const AppContent: React.FC = () => {
     return (
       <div className="state-container" style={{ minHeight: '80vh' }}>
         <div className="spinner" />
-        <p style={{ color: 'var(--text-muted)' }}>Loading authentication session...</p>
+        <p style={{ color: 'var(--text-muted)' }}>Loading session...</p>
       </div>
     );
   }
@@ -96,7 +139,12 @@ const AppContent: React.FC = () => {
 
   // Screen Routing based on activeScreen and Role protection
   const renderScreen = () => {
-    // 1. Unauthenticated screens
+    // Public / General screens accessible to anyone
+    if (activeScreen === 'person-history') {
+      return <PersonHistoryPage />;
+    }
+
+    // 1. Unauthenticated Auth Screens
     if (activeScreen === 'auth-user') {
       return (
         <UserAuthPage
@@ -132,8 +180,7 @@ const AppContent: React.FC = () => {
       );
     }
 
-    // Role-specific screens
-    // USER Screens
+    // 3. USER Screens
     if (activeScreen === 'user-dashboard') {
       if (role !== 'USER') return renderUnauthorized('USER');
       return (
@@ -168,12 +215,7 @@ const AppContent: React.FC = () => {
       return <UserMyRequestsPage onRequestRide={() => setActiveScreen('request')} />;
     }
 
-    if (activeScreen === 'person-history') {
-      if (role !== 'USER') return renderUnauthorized('USER');
-      return <PersonHistoryPage />;
-    }
-
-    // RIDER Screens
+    // 4. RIDER Screens
     if (activeScreen === 'rider-dashboard') {
       if (role !== 'RIDER') return renderUnauthorized('RIDER');
       return <RiderDashboardPage onSelectCurrentTrip={() => setActiveScreen('current-trip')} />;
@@ -185,23 +227,34 @@ const AppContent: React.FC = () => {
     }
 
     if (activeScreen === 'rider-history') {
-      if (role !== 'RIDER') return renderUnauthorized('RIDER');
+      if (role !== 'RIDER' && role !== 'ADMIN') return renderUnauthorized('RIDER or ADMIN');
       return <RiderHistoryPage />;
     }
 
-    // ADMIN Screens
+    // 5. ADMIN Screens
     if (activeScreen === 'admin-dashboard') {
       if (role !== 'ADMIN') return renderUnauthorized('ADMIN');
       return <AdminDashboardPage />;
     }
 
-    return <UserDashboardPage onRequestRide={() => setActiveScreen('request')} onViewMyRequests={() => setActiveScreen('user-my-requests')} onViewHistory={() => setActiveScreen('person-history')} />;
+    // Fallback default
+    if (role === 'ADMIN') return <AdminDashboardPage />;
+    if (role === 'RIDER') return <RiderDashboardPage onSelectCurrentTrip={() => setActiveScreen('current-trip')} />;
+    return (
+      <UserDashboardPage
+        onRequestRide={() => setActiveScreen('request')}
+        onViewMyRequests={() => setActiveScreen('user-my-requests')}
+        onViewHistory={() => setActiveScreen('person-history')}
+      />
+    );
   };
 
   return (
     <div className="app-container">
       <Navbar activeScreen={activeScreen} setActiveScreen={setActiveScreen} />
-      <main className="main-content">{renderScreen()}</main>
+      <main className="main-content">
+        <ErrorBoundary>{renderScreen()}</ErrorBoundary>
+      </main>
     </div>
   );
 };

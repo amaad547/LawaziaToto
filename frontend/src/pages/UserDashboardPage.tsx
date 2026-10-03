@@ -24,14 +24,15 @@ export const UserDashboardPage: React.FC<UserDashboardPageProps> = ({
     const loadRequests = async () => {
       try {
         const all = await api.getRequests();
-        // Filter requests matching user's name
+        const safeAll = Array.isArray(all) ? all : [];
         const userNameLower = (user?.name || '').toLowerCase();
-        const userReqs = all.filter((r) =>
-          r.passengers.some((p) => p.name.toLowerCase() === userNameLower)
+        const userReqs = safeAll.filter((r) =>
+          Array.isArray(r.passengers) && r.passengers.some((p) => p && p.name && p.name.toLowerCase() === userNameLower)
         );
-        setRequests(userReqs.length > 0 ? userReqs : all.slice(0, 3));
+        setRequests(userReqs.length > 0 ? userReqs : safeAll.slice(0, 3));
       } catch (err) {
         console.error(err);
+        setRequests([]);
       } finally {
         setLoading(false);
       }
@@ -39,8 +40,9 @@ export const UserDashboardPage: React.FC<UserDashboardPageProps> = ({
     loadRequests();
   }, [user]);
 
-  const pendingCount = requests.filter((r) => r.status === 'REQUESTED').length;
-  const completedCount = requests.filter((r) => r.status === 'COMPLETED').length;
+  const safeRequests = Array.isArray(requests) ? requests : [];
+  const pendingCount = safeRequests.filter((r) => r && r.status === 'REQUESTED').length;
+  const completedCount = safeRequests.filter((r) => r && r.status === 'COMPLETED').length;
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: '900px', margin: '0 auto' }}>

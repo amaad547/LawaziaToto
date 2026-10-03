@@ -117,7 +117,7 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({ onSuccess, onSwi
                 cursor: 'pointer',
               }}
             >
-              Fill Default Credentials (admin@lawazia.com)
+              Autofill Credentials (admin@lawazia.com)
             </button>
           </div>
         </div>

@@ -55,8 +55,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     throw error;
   }
 
-  const data = await res.json();
-  return data as T;
+  return await res.json();
 }
 
 export const api = {
@@ -65,35 +64,46 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    return data.request || data;
+    return data?.request || data;
   },
 
   getRequests: async (mine?: boolean): Promise<RideRequest[]> => {
-    const query = mine ? '?mine=true' : '';
-    const data = await request<any>(`/requests${query}`);
-    if (data && Array.isArray(data.requests)) return data.requests;
-    if (Array.isArray(data)) return data;
-    return [];
+    try {
+      const query = mine ? '?mine=true' : '';
+      const data = await request<any>(`/requests${query}`);
+      if (data && Array.isArray(data.requests)) return data.requests;
+      if (Array.isArray(data)) return data;
+      return [];
+    } catch (err) {
+      console.error('getRequests failed:', err);
+      return [];
+    }
   },
 
   getCurrentTrip: async (): Promise<RideRequest | null> => {
-    const data = await request<any>('/trips/current');
-    if (data && data.trip !== undefined) return data.trip;
-    return data || null;
+    try {
+      const data = await request<any>('/trips/current');
+      if (data && data.trip !== undefined) return data.trip;
+      if (data && data.id) return data;
+      return null;
+    } catch (err) {
+      console.error('getCurrentTrip failed:', err);
+      return null;
+    }
   },
 
   acceptRequest: async (id: string): Promise<RideRequest> => {
     const data = await request<any>(`/requests/${id}/accept`, {
       method: 'POST',
     });
-    return data.trip || data;
+    return data?.trip || data;
   },
 
   startTrip: async (id: string): Promise<RideRequest> => {
     const data = await request<any>(`/trips/${id}/start`, {
       method: 'POST',
     });
-    return data.trip || data;
+    return data?.trip || data;
   },
 
   updateBoarding: async (tripId: string, payload: BoardingUpdatePayload): Promise<RideRequest> => {
@@ -101,7 +111,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-    return data.trip || data;
+    return data?.trip || data;
   },
 
   completeTrip: async (id: string): Promise<{ message: string; trip: RideRequest }> => {
@@ -112,44 +122,85 @@ export const api = {
   },
 
   getPersonHistory: async (name: string): Promise<PersonHistoryItem[]> => {
-    const data = await request<any>(`/history/person/${encodeURIComponent(name)}`);
-    if (data && Array.isArray(data.history)) return data.history;
-    if (Array.isArray(data)) return data;
-    return [];
+    try {
+      const data = await request<any>(`/history/person/${encodeURIComponent(name)}`);
+      if (data && Array.isArray(data.history)) return data.history;
+      if (Array.isArray(data)) return data;
+      return [];
+    } catch (err) {
+      console.error('getPersonHistory failed:', err);
+      return [];
+    }
   },
 
   getMyHistory: async (): Promise<PersonHistoryItem[]> => {
-    const data = await request<any>('/history/me');
-    if (data && Array.isArray(data.history)) return data.history;
-    if (Array.isArray(data)) return data;
-    return [];
+    try {
+      const data = await request<any>('/history/me');
+      if (data && Array.isArray(data.history)) return data.history;
+      if (Array.isArray(data)) return data;
+      return [];
+    } catch (err) {
+      console.error('getMyHistory failed:', err);
+      return [];
+    }
   },
 
   getRiderHistory: async (): Promise<RiderHistoryItem[]> => {
-    const data = await request<any>('/history/rider');
-    if (data && Array.isArray(data.history)) return data.history;
-    if (Array.isArray(data)) return data;
-    return [];
+    try {
+      const data = await request<any>('/history/rider');
+      if (data && Array.isArray(data.history)) return data.history;
+      if (Array.isArray(data)) return data;
+      return [];
+    } catch (err) {
+      console.error('getRiderHistory failed:', err);
+      return [];
+    }
   },
 
   // Admin APIs
-  getAdminOverview: async (): Promise<AdminOverviewStats> => {
-    const data = await request<any>('/admin/overview');
-    return data.stats || data;
+  getAdminOverview: async (): Promise<AdminOverviewStats | null> => {
+    try {
+      const data = await request<any>('/admin/overview');
+      return data?.stats || data || null;
+    } catch (err) {
+      console.error('getAdminOverview failed:', err);
+      return null;
+    }
   },
 
   getAdminUsers: async (): Promise<AdminUserItem[]> => {
-    const data = await request<any>('/admin/users');
-    return data.users || (Array.isArray(data) ? data : []);
+    try {
+      const data = await request<any>('/admin/users');
+      if (data && Array.isArray(data.users)) return data.users;
+      if (Array.isArray(data)) return data;
+      return [];
+    } catch (err) {
+      console.error('getAdminUsers failed:', err);
+      return [];
+    }
   },
 
   getAdminRequests: async (): Promise<any[]> => {
-    const data = await request<any>('/admin/requests');
-    return data.requests || (Array.isArray(data) ? data : []);
+    try {
+      const data = await request<any>('/admin/requests');
+      if (data && Array.isArray(data.requests)) return data.requests;
+      if (Array.isArray(data)) return data;
+      return [];
+    } catch (err) {
+      console.error('getAdminRequests failed:', err);
+      return [];
+    }
   },
 
   getAdminTrips: async (): Promise<any[]> => {
-    const data = await request<any>('/admin/trips');
-    return data.trips || (Array.isArray(data) ? data : []);
+    try {
+      const data = await request<any>('/admin/trips');
+      if (data && Array.isArray(data.trips)) return data.trips;
+      if (Array.isArray(data)) return data;
+      return [];
+    } catch (err) {
+      console.error('getAdminTrips failed:', err);
+      return [];
+    }
   },
 };

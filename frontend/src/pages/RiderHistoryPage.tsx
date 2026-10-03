@@ -12,9 +12,10 @@ export const RiderHistoryPage: React.FC = () => {
     setLoading(true);
     try {
       const data = await api.getRiderHistory();
-      setHistory(data);
+      setHistory(Array.isArray(data) ? data : []);
     } catch (err: any) {
       console.error('Failed to fetch rider history:', err);
+      setHistory([]);
     } finally {
       setLoading(false);
     }

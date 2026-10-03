@@ -29,9 +29,9 @@ export const AdminDashboardPage: React.FC = () => {
     const fetchData = async () => {
       try {
         const stored = await authService.getAllAccounts();
-        setAccounts(stored);
+        setAccounts(Array.isArray(stored) ? stored : []);
         const reqList = await api.getRequests();
-        setRequests(reqList);
+        setRequests(Array.isArray(reqList) ? reqList : []);
       } catch (err) {
         console.error(err);
       } finally {
@@ -41,10 +41,12 @@ export const AdminDashboardPage: React.FC = () => {
     fetchData();
   }, []);
 
-  const registeredUsers = accounts.filter((a) => a.role === 'USER');
-  const registeredRiders = accounts.filter((a) => a.role === 'RIDER');
-  const activeTrips = requests.filter((r) => r.status === 'ACCEPTED' || r.status === 'IN_PROGRESS');
-  const completedTrips = requests.filter((r) => r.status === 'COMPLETED');
+  const safeAccounts = Array.isArray(accounts) ? accounts : [];
+  const safeRequests = Array.isArray(requests) ? requests : [];
+  const registeredUsers = safeAccounts.filter((a) => a.role === 'USER');
+  const registeredRiders = safeAccounts.filter((a) => a.role === 'RIDER');
+  const activeTrips = safeRequests.filter((r) => r && (r.status === 'ACCEPTED' || r.status === 'IN_PROGRESS'));
+  const completedTrips = safeRequests.filter((r) => r && r.status === 'COMPLETED');
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto' }}>

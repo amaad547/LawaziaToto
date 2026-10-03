@@ -66,17 +66,20 @@ export const Navbar: React.FC<NavbarProps> = ({ activeScreen, setActiveScreen })
   const getRiderNavItems = () => [
     { id: 'rider-dashboard' as ScreenId, label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
     { id: 'current-trip' as ScreenId, label: 'Current Trip', icon: <Compass size={18} /> },
-    { id: 'rider-history' as ScreenId, label: 'History', icon: <History size={18} /> },
+    { id: 'rider-history' as ScreenId, label: 'Rider History', icon: <History size={18} /> },
+    { id: 'person-history' as ScreenId, label: 'Person History', icon: <User size={18} /> },
   ];
 
   const getAdminNavItems = () => [
     { id: 'admin-dashboard' as ScreenId, label: 'Dashboard', icon: <ShieldCheck size={18} /> },
+    { id: 'person-history' as ScreenId, label: 'Person Lookup', icon: <User size={18} /> },
   ];
 
   const getUnauthNavItems = () => [
     { id: 'auth-user' as ScreenId, label: 'User Portal', icon: <User size={18} /> },
     { id: 'auth-rider' as ScreenId, label: 'Rider Desk', icon: <Car size={18} /> },
     { id: 'auth-admin' as ScreenId, label: 'Admin', icon: <ShieldCheck size={18} /> },
+    { id: 'person-history' as ScreenId, label: 'Ride History', icon: <History size={18} /> },
   ];
 
   const navItems = !isAuthenticated
@@ -229,7 +232,7 @@ export const Navbar: React.FC<NavbarProps> = ({ activeScreen, setActiveScreen })
             background: 'var(--panel-bg)',
             backdropFilter: 'blur(20px)',
             borderBottom: '1px solid var(--border-color)',
-            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.35)',
+            boxShadow: '0 12px 30px rgba(0, 0, 0, 0.4)',
             padding: '1.25rem',
             zIndex: 999,
             display: 'flex',

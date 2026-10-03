@@ -26,10 +26,12 @@ export const RiderDashboardPage: React.FC<RiderDashboardPageProps> = ({ onSelect
         api.getRequests(),
         api.getCurrentTrip(),
       ]);
-      setRequests(reqList);
-      setCurrentTrip(currTrip);
+      setRequests(Array.isArray(reqList) ? reqList : []);
+      setCurrentTrip(currTrip && currTrip.id ? currTrip : null);
     } catch (err: any) {
       console.error('Failed to load dashboard data:', err);
+      setRequests([]);
+      setCurrentTrip(null);
     } finally {
       setLoadingRequests(false);
       setLoadingTrip(false);
@@ -140,7 +142,7 @@ export const RiderDashboardPage: React.FC<RiderDashboardPageProps> = ({ onSelect
               <div>
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Passengers</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600, marginTop: '0.2rem' }}>
-                  <Users size={16} /> {currentTrip.passengerCount} people ({currentTrip.passengers.map(p => p.name).join(', ')})
+                  <Users size={16} /> {currentTrip.passengerCount} people ({Array.isArray(currentTrip.passengers) ? currentTrip.passengers.map(p => p.name).join(', ') : ''})
                 </div>
               </div>
             </div>

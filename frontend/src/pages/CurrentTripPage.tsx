@@ -22,9 +22,12 @@ export const CurrentTripPage: React.FC<CurrentTripPageProps> = ({ onTripComplete
     setLoading(true);
     try {
       const data = await api.getCurrentTrip();
-      setTrip(data);
-      if (data) {
-        setPassengers(data.passengers || []);
+      if (data && data.id) {
+        setTrip(data);
+        setPassengers(Array.isArray(data.passengers) ? data.passengers : []);
+      } else {
+        setTrip(null);
+        setPassengers([]);
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to fetch current trip details');

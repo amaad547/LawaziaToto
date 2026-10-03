@@ -41,6 +41,8 @@ export const PersonHistoryPage: React.FC = () => {
     fetchHistory(searchName);
   };
 
+  const safeHistory = Array.isArray(history) ? history : [];
+
   return (
     <div className="animate-fade-in" style={{ maxWidth: '800px', margin: '0 auto' }}>
       <div style={{ marginBottom: '2rem', textAlign: 'center' }}>
@@ -95,7 +97,7 @@ export const PersonHistoryPage: React.FC = () => {
       {searched && (
         <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ fontSize: '1.1rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Trips for "{activeQuery}" ({history.length})
+            Trips for "{activeQuery}" ({safeHistory.length})
           </h2>
           {userName && activeQuery.toLowerCase() === userName.toLowerCase() && (
             <span className="badge badge-accepted" style={{ fontSize: '0.75rem' }}>Your History</span>
@@ -109,7 +111,7 @@ export const PersonHistoryPage: React.FC = () => {
           <div className="spinner" />
           <p style={{ color: 'var(--text-muted)' }}>Searching trips for {activeQuery}...</p>
         </div>
-      ) : history.length === 0 ? (
+      ) : safeHistory.length === 0 ? (
         <div className="glass-panel state-container" style={{ padding: '2.5rem 1.5rem', textAlign: 'center' }}>
           <UserCheck size={44} color="var(--text-muted)" style={{ margin: '0 auto 0.75rem auto' }} />
           <h3 style={{ fontSize: '1.2rem', marginBottom: '0.4rem' }}>No trips found</h3>
@@ -119,7 +121,7 @@ export const PersonHistoryPage: React.FC = () => {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {history.map((item) => (
+          {safeHistory.map((item) => (
             <div key={item.id} className="glass-panel" style={{ padding: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
