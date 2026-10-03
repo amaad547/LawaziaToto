@@ -9,7 +9,6 @@ function getDatabase(dbPath) {
 
   const targetPath = dbPath || process.env.DATABASE_FILE || path.join(__dirname, '..', 'toto.db');
   
-  // If targetPath is not ':memory:', ensure directory exists
   if (targetPath !== ':memory:') {
     const dir = path.dirname(targetPath);
     if (!fs.existsSync(dir)) {
@@ -35,6 +34,7 @@ function initSchema(db) {
       to_location TEXT NOT NULL,
       scheduled_at TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'REQUESTED', -- 'REQUESTED', 'ACCEPTED', 'CLASH'
+      user_id INTEGER,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
@@ -79,7 +79,47 @@ function initSchema(db) {
 
     CREATE INDEX IF NOT EXISTS idx_boarding_trip_id ON boarding_records(trip_id);
     CREATE INDEX IF NOT EXISTS idx_boarding_name ON boarding_records(name COLLATE NOCASE);
+
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'USER', -- 'USER', 'RIDER', 'ADMIN'
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email COLLATE NOCASE);
+    CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
   `);
+
+  // Migration: ensure user_id column exists
+  try {
+    const reqColumns = db.prepare("PRAGMA table_info(requests)").all();
+    if (!reqColumns.some(c => c.name === 'user_id')) {
+      db.exec("ALTER TABLE requests ADD COLUMN user_id INTEGER REFERENCES users(id);");
+    }
+  } catch (_) {}
+
+  seedAdminIfConfigured(db);
+}
+
+function seedAdminIfConfigured(db) {
+  const adminEmail = (process.env.ADMIN_EMAIL || 'admin@lawazia.com').trim();
+  const adminPassword = (process.env.ADMIN_PASSWORD || 'Admin@123456').trim();
+  const adminName = (process.env.ADMIN_NAME || 'System Admin').trim();
+
+  if (adminEmail && adminPassword) {
+    const { hashPassword } = require('./utils/crypto');
+    const existing = db.prepare('SELECT id FROM users WHERE email = ? COLLATE NOCASE').get(adminEmail);
+    if (!existing) {
+      const hash = hashPassword(adminPassword);
+      db.prepare(`
+        INSERT INTO users (name, email, password_hash, role)
+        VALUES (?, ?, ?, 'ADMIN')
+      `).run(adminName, adminEmail, hash);
+    }
+  }
 }
 
 function closeDatabase() {

@@ -1,18 +1,23 @@
 const express = require('express');
 const { getDatabase } = require('../db');
+const { optionalAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
 // Helper: Normalize ISO string or date
-function normalizeScheduledAt(scheduledAt, scheduledDate, scheduledTime) {
-  if (scheduledAt && typeof scheduledAt === 'string' && scheduledAt.trim() !== '') {
-    const d = new Date(scheduledAt.trim());
+function normalizeScheduledAt(scheduledAt, scheduledDate, scheduledTime, date, time) {
+  const finalScheduledAt = scheduledAt;
+  const finalDate = date || scheduledDate;
+  const finalTime = time || scheduledTime;
+
+  if (finalScheduledAt && typeof finalScheduledAt === 'string' && finalScheduledAt.trim() !== '') {
+    const d = new Date(finalScheduledAt.trim());
     if (isNaN(d.getTime())) return null;
     return d.toISOString();
   }
 
-  if (scheduledDate && scheduledTime) {
-    const combined = `${scheduledDate.trim()} ${scheduledTime.trim()}`;
+  if (finalDate && finalTime) {
+    const combined = `${finalDate.toString().trim()} ${finalTime.toString().trim()}`;
     const d = new Date(combined);
     if (isNaN(d.getTime())) return null;
     return d.toISOString();
@@ -23,13 +28,27 @@ function normalizeScheduledAt(scheduledAt, scheduledDate, scheduledTime) {
 
 // Helper: Format a request row with people
 function formatRequest(row, people = []) {
+  const d = new Date(row.scheduled_at);
+  const dateStr = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '';
+  const timeStr = !isNaN(d.getTime()) ? d.toISOString().split('T')[1].slice(0, 5) : '';
+
   return {
     id: row.id,
     from: row.from_location,
     to: row.to_location,
     scheduledAt: row.scheduled_at,
+    date: dateStr,
+    time: timeStr,
     status: row.status,
+    userId: row.user_id || null,
     createdAt: row.created_at,
+    passengerCount: people.length,
+    passengers: people.map(p => ({
+      id: p.id,
+      requestId: p.request_id || row.id,
+      name: p.name,
+      status: 'PENDING'
+    })),
     people: people.map(p => ({
       id: p.id,
       requestId: p.request_id || row.id,
@@ -39,9 +58,21 @@ function formatRequest(row, people = []) {
 }
 
 // POST /api/requests - Create a ride request
-router.post('/', (req, res) => {
+router.post('/', optionalAuth, (req, res) => {
   const db = getDatabase();
-  const { from, to, scheduledAt, scheduledDate, scheduledTime, numberOfPeople, people } = req.body;
+  const {
+    from,
+    to,
+    scheduledAt,
+    scheduledDate,
+    scheduledTime,
+    date,
+    time,
+    numberOfPeople,
+    passengerCount,
+    people,
+    passengers
+  } = req.body;
 
   // Validation: Origin and Destination
   if (!from || typeof from !== 'string' || from.trim() === '') {
@@ -61,7 +92,7 @@ router.post('/', (req, res) => {
   }
 
   // Validation: Scheduled Date/Time
-  const normalizedTime = normalizeScheduledAt(scheduledAt, scheduledDate, scheduledTime);
+  const normalizedTime = normalizeScheduledAt(scheduledAt, scheduledDate, scheduledTime, date, time);
   if (!normalizedTime) {
     return res.status(400).json({
       success: false,
@@ -70,8 +101,9 @@ router.post('/', (req, res) => {
     });
   }
 
-  // Validation: People
-  if (!people || !Array.isArray(people) || people.length === 0) {
+  // Validation: People / Passengers
+  const rawPeople = people || passengers;
+  if (!rawPeople || !Array.isArray(rawPeople) || rawPeople.length === 0) {
     return res.status(400).json({
       success: false,
       error: 'VALIDATION_ERROR',
@@ -80,8 +112,8 @@ router.post('/', (req, res) => {
   }
 
   const parsedNames = [];
-  for (let i = 0; i < people.length; i++) {
-    const item = people[i];
+  for (let i = 0; i < rawPeople.length; i++) {
+    const item = rawPeople[i];
     let name = '';
     if (typeof item === 'string') {
       name = item.trim();
@@ -99,9 +131,10 @@ router.post('/', (req, res) => {
     parsedNames.push(name);
   }
 
-  // Validation: Optional numberOfPeople count check
-  if (numberOfPeople !== undefined && numberOfPeople !== null) {
-    const count = parseInt(numberOfPeople, 10);
+  // Validation: Optional count check
+  const rawCount = numberOfPeople !== undefined ? numberOfPeople : passengerCount;
+  if (rawCount !== undefined && rawCount !== null) {
+    const count = parseInt(rawCount, 10);
     if (isNaN(count) || count !== parsedNames.length) {
       return res.status(400).json({
         success: false,
@@ -114,11 +147,12 @@ router.post('/', (req, res) => {
   try {
     db.exec('BEGIN IMMEDIATE');
 
+    const userId = req.user ? req.user.id : null;
     const insertReq = db.prepare(`
-      INSERT INTO requests (from_location, to_location, scheduled_at, status)
-      VALUES (?, ?, ?, 'REQUESTED')
+      INSERT INTO requests (from_location, to_location, scheduled_at, status, user_id)
+      VALUES (?, ?, ?, 'REQUESTED', ?)
     `);
-    const reqResult = insertReq.run(from.trim(), to.trim(), normalizedTime);
+    const reqResult = insertReq.run(from.trim(), to.trim(), normalizedTime, userId);
     const requestId = Number(reqResult.lastInsertRowid);
 
     const insertPerson = db.prepare(`
@@ -155,17 +189,27 @@ router.post('/', (req, res) => {
 });
 
 // GET /api/requests - List requests
-router.get('/', (req, res) => {
+router.get('/', optionalAuth, (req, res) => {
   const db = getDatabase();
-  const { status } = req.query;
+  const { status, mine } = req.query;
 
   try {
-    let query = 'SELECT * FROM requests';
+    const whereClauses = [];
     const params = [];
 
     if (status && typeof status === 'string') {
-      query += ' WHERE status = ?';
+      whereClauses.push('status = ?');
       params.push(status.toUpperCase().trim());
+    }
+
+    if (mine === 'true' && req.user) {
+      whereClauses.push('user_id = ?');
+      params.push(req.user.id);
+    }
+
+    let query = 'SELECT * FROM requests';
+    if (whereClauses.length > 0) {
+      query += ` WHERE ${whereClauses.join(' AND ')}`;
     }
 
     query += ' ORDER BY scheduled_at ASC, id ASC';

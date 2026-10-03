@@ -3,6 +3,71 @@ const { getDatabase } = require('../db');
 
 const router = express.Router();
 
+const { optionalAuth, requireAuth } = require('../middleware/auth');
+
+// GET /api/history/me - Get history for currently logged in user
+router.get('/me', requireAuth, (req, res) => {
+  const db = getDatabase();
+  const trimmedName = req.user.name.trim();
+
+  try {
+    const query = `
+      SELECT 
+        t.id AS tripId,
+        t.request_id AS requestId,
+        t.from_location AS fromLocation,
+        t.to_location AS toLocation,
+        t.scheduled_at AS scheduledAt,
+        t.status AS tripStatus,
+        t.accepted_at AS acceptedAt,
+        t.completed_at AS completedAt,
+        b.status AS boardingStatus
+      FROM boarding_records b
+      JOIN trips t ON b.trip_id = t.id
+      WHERE LOWER(b.name) = LOWER(?)
+      ORDER BY t.scheduled_at DESC, t.id DESC
+    `;
+
+    const rows = db.prepare(query).all(trimmedName);
+
+    const history = rows.map(r => {
+      const d = new Date(r.scheduledAt);
+      const dateStr = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '';
+      const timeStr = !isNaN(d.getTime()) ? d.toISOString().split('T')[1].slice(0, 5) : '';
+
+      return {
+        id: r.tripId,
+        tripId: r.tripId,
+        requestId: r.requestId,
+        from: r.fromLocation,
+        to: r.toLocation,
+        route: `${r.fromLocation} → ${r.toLocation}`,
+        scheduledAt: r.scheduledAt,
+        date: dateStr,
+        time: timeStr,
+        tripStatus: r.tripStatus,
+        status: r.tripStatus,
+        passengerStatus: r.boardingStatus,
+        boardingStatus: r.boardingStatus,
+        acceptedAt: r.acceptedAt,
+        completedAt: r.completedAt
+      };
+    });
+
+    return res.json({
+      success: true,
+      person: trimmedName,
+      history
+    });
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      error: 'SERVER_ERROR',
+      message: 'Failed to retrieve your trip history.'
+    });
+  }
+});
+
 // GET /api/history/person/:name - Get all trips containing a person's name
 router.get('/person/:name', (req, res) => {
   const db = getDatabase();
@@ -38,18 +103,29 @@ router.get('/person/:name', (req, res) => {
 
     const rows = db.prepare(query).all(trimmedName);
 
-    const history = rows.map(r => ({
-      tripId: r.tripId,
-      requestId: r.requestId,
-      from: r.fromLocation,
-      to: r.toLocation,
-      route: `${r.fromLocation} → ${r.toLocation}`,
-      scheduledAt: r.scheduledAt,
-      tripStatus: r.tripStatus,
-      boardingStatus: r.boardingStatus,
-      acceptedAt: r.acceptedAt,
-      completedAt: r.completedAt
-    }));
+    const history = rows.map(r => {
+      const d = new Date(r.scheduledAt);
+      const dateStr = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '';
+      const timeStr = !isNaN(d.getTime()) ? d.toISOString().split('T')[1].slice(0, 5) : '';
+
+      return {
+        id: r.tripId,
+        tripId: r.tripId,
+        requestId: r.requestId,
+        from: r.fromLocation,
+        to: r.toLocation,
+        route: `${r.fromLocation} → ${r.toLocation}`,
+        scheduledAt: r.scheduledAt,
+        date: dateStr,
+        time: timeStr,
+        tripStatus: r.tripStatus,
+        status: r.tripStatus,
+        passengerStatus: r.boardingStatus,
+        boardingStatus: r.boardingStatus,
+        acceptedAt: r.acceptedAt,
+        completedAt: r.completedAt
+      };
+    });
 
     return res.json({
       success: true,

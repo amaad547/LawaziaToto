@@ -4,12 +4,19 @@ const { getDatabase } = require('../db');
 const router = express.Router();
 
 function formatTrip(tripRow, passengers = []) {
+  const d = new Date(tripRow.scheduled_at);
+  const dateStr = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '';
+  const timeStr = !isNaN(d.getTime()) ? d.toISOString().split('T')[1].slice(0, 5) : '';
+
   return {
     id: tripRow.id,
     requestId: tripRow.request_id,
     from: tripRow.from_location,
     to: tripRow.to_location,
     scheduledAt: tripRow.scheduled_at,
+    date: dateStr,
+    time: timeStr,
+    passengerCount: passengers.length,
     status: tripRow.status,
     acceptedAt: tripRow.accepted_at,
     completedAt: tripRow.completed_at,
@@ -19,6 +26,10 @@ function formatTrip(tripRow, passengers = []) {
       personId: p.person_id,
       name: p.name,
       status: p.status
+    })),
+    people: passengers.map(p => ({
+      id: p.person_id || p.id,
+      name: p.name
     }))
   };
 }
@@ -200,25 +211,6 @@ router.post('/:tripId/boarding', (req, res) => {
     });
   }
 
-  const { personId, passengerId, name, status } = req.body;
-
-  if (!status || typeof status !== 'string') {
-    return res.status(400).json({
-      success: false,
-      error: 'VALIDATION_ERROR',
-      message: 'Boarding status is required.'
-    });
-  }
-
-  const normalizedStatus = status.trim().toUpperCase();
-  if (normalizedStatus !== 'BOARDED' && normalizedStatus !== 'MISSED') {
-    return res.status(400).json({
-      success: false,
-      error: 'VALIDATION_ERROR',
-      message: "Status must be 'BOARDED' or 'MISSED'."
-    });
-  }
-
   try {
     const trip = db.prepare('SELECT * FROM trips WHERE id = ?').get(tripId);
     if (!trip) {
@@ -234,6 +226,102 @@ router.post('/:tripId/boarding', (req, res) => {
         success: false,
         error: 'ALREADY_COMPLETED',
         message: 'Cannot update boarding for an already completed trip.'
+      });
+    }
+
+    // CASE 1: Batch boarding submission (from frontend/API contract)
+    if (Array.isArray(req.body.passengers)) {
+      const passengersList = req.body.passengers;
+      if (passengersList.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'VALIDATION_ERROR',
+          message: 'Passengers array cannot be empty.'
+        });
+      }
+
+      // Pre-validate all items
+      for (const p of passengersList) {
+        if (!p.status || typeof p.status !== 'string') {
+          return res.status(400).json({
+            success: false,
+            error: 'VALIDATION_ERROR',
+            message: 'Each passenger must have a status.'
+          });
+        }
+        const st = p.status.trim().toUpperCase();
+        if (st !== 'BOARDED' && st !== 'MISSED' && st !== 'PENDING') {
+          return res.status(400).json({
+            success: false,
+            error: 'VALIDATION_ERROR',
+            message: "Status must be 'BOARDED' or 'MISSED'."
+          });
+        }
+      }
+
+      db.exec('BEGIN IMMEDIATE');
+
+      for (const p of passengersList) {
+        const normStatus = p.status.trim().toUpperCase();
+        let targetId = null;
+
+        if (p.id) {
+          const rec = db.prepare('SELECT id FROM boarding_records WHERE id = ? AND trip_id = ?').get(p.id, tripId);
+          if (rec) targetId = rec.id;
+        }
+        if (!targetId && p.personId) {
+          const rec = db.prepare('SELECT id FROM boarding_records WHERE person_id = ? AND trip_id = ?').get(p.personId, tripId);
+          if (rec) targetId = rec.id;
+        }
+        if (!targetId && p.name) {
+          const rec = db.prepare('SELECT id FROM boarding_records WHERE trip_id = ? AND LOWER(name) = LOWER(?)').get(tripId, p.name.trim());
+          if (rec) targetId = rec.id;
+        }
+
+        if (targetId) {
+          db.prepare(`
+            UPDATE boarding_records
+            SET status = ?, updated_at = datetime('now')
+            WHERE id = ?
+          `).run(normStatus, targetId);
+        }
+      }
+
+      db.exec('COMMIT');
+
+      const updatedRecords = db.prepare('SELECT * FROM boarding_records WHERE trip_id = ? ORDER BY id ASC').all(tripId);
+
+      return res.json({
+        success: true,
+        id: trip.id,
+        status: trip.status,
+        passengers: updatedRecords.map(p => ({
+          id: p.id,
+          tripId: p.trip_id,
+          personId: p.person_id,
+          name: p.name,
+          status: p.status
+        }))
+      });
+    }
+
+    // CASE 2: Single passenger boarding update
+    const { personId, passengerId, name, status } = req.body;
+
+    if (!status || typeof status !== 'string') {
+      return res.status(400).json({
+        success: false,
+        error: 'VALIDATION_ERROR',
+        message: 'Boarding status is required.'
+      });
+    }
+
+    const normalizedStatus = status.trim().toUpperCase();
+    if (normalizedStatus !== 'BOARDED' && normalizedStatus !== 'MISSED') {
+      return res.status(400).json({
+        success: false,
+        error: 'VALIDATION_ERROR',
+        message: "Status must be 'BOARDED' or 'MISSED'."
       });
     }
 
@@ -277,6 +365,7 @@ router.post('/:tripId/boarding', (req, res) => {
       }
     });
   } catch (err) {
+    try { db.exec('ROLLBACK'); } catch (_) {}
     return res.status(500).json({
       success: false,
       error: 'SERVER_ERROR',

@@ -1,9 +1,11 @@
 const express = require('express');
 const cors = require('cors');
 
+const authRouter = require('./routes/auth');
 const requestsRouter = require('./routes/requests');
 const tripsRouter = require('./routes/trips');
 const historyRouter = require('./routes/history');
+const adminRouter = require('./routes/admin');
 
 const app = express();
 
@@ -39,9 +41,11 @@ app.get('/health', healthHandler);
 app.get('/api/health', healthHandler);
 
 // API Routes
+app.use('/api/auth', authRouter);
 app.use('/api/requests', requestsRouter);
 app.use('/api/trips', tripsRouter);
 app.use('/api/history', historyRouter);
+app.use('/api/admin', adminRouter);
 
 // 404 Fallback
 app.use((req, res) => {

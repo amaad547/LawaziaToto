@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { PersonHistoryItem } from '../types/api';
 import { api } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { StatusBadge } from '../components/StatusBadge';
 import { UserCheck, Search, Calendar, Clock, MapPin, ArrowRight, Loader2, User } from 'lucide-react';
 
 export const PersonHistoryPage: React.FC = () => {
-  const [searchName, setSearchName] = useState<string>('Rahul');
-  const [activeQuery, setActiveQuery] = useState<string>('Rahul');
+  const { user } = useAuth();
+  const initialName = user?.name || 'Rahul';
+  const [searchName, setSearchName] = useState<string>(initialName);
+  const [activeQuery, setActiveQuery] = useState<string>(initialName);
   const [history, setHistory] = useState<PersonHistoryItem[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [searched, setSearched] = useState<boolean>(false);
@@ -28,8 +31,8 @@ export const PersonHistoryPage: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchHistory('Rahul');
-  }, []);
+    fetchHistory(initialName);
+  }, [initialName]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

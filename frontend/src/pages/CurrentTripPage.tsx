@@ -13,6 +13,7 @@ export const CurrentTripPage: React.FC<CurrentTripPageProps> = ({ onTripComplete
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [savingBoarding, setSavingBoarding] = useState<boolean>(false);
+  const [starting, setStarting] = useState<boolean>(false);
   const [completing, setCompleting] = useState<boolean>(false);
 
   const [message, setMessage] = useState<string | null>(null);
@@ -45,6 +46,23 @@ export const CurrentTripPage: React.FC<CurrentTripPageProps> = ({ onTripComplete
     });
   };
 
+  const handleStartTrip = async () => {
+    if (!trip) return;
+    setStarting(true);
+    setMessage(null);
+    setErrorMsg(null);
+
+    try {
+      const updated = await api.startTrip(trip.id);
+      setTrip(updated);
+      setMessage('Pickup started! Trip is now IN_PROGRESS.');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to start trip.');
+    } finally {
+      setStarting(false);
+    }
+  };
+
   const handleSaveBoarding = async () => {
     if (!trip) return;
     setSavingBoarding(true);
@@ -65,7 +83,13 @@ export const CurrentTripPage: React.FC<CurrentTripPageProps> = ({ onTripComplete
   const handleCompleteTrip = async () => {
     if (!trip) return;
 
-    // First ensure boarding statuses are saved
+    // Check if any passenger is still PENDING
+    const pendingPassenger = passengers.find(p => p.status === 'PENDING');
+    if (pendingPassenger) {
+      setErrorMsg(`All passengers must be marked BOARDED or MISSED before completing the trip. Remaining pending: ${pendingPassenger.name}`);
+      return;
+    }
+
     setCompleting(true);
     setMessage(null);
     setErrorMsg(null);
@@ -307,23 +331,42 @@ export const CurrentTripPage: React.FC<CurrentTripPageProps> = ({ onTripComplete
         </button>
       </div>
 
-      {/* Complete Trip Action Button */}
-      <button
-        onClick={handleCompleteTrip}
-        disabled={completing}
-        className="btn btn-success"
-        style={{ width: '100%', padding: '1.1rem', fontSize: '1.1rem', boxShadow: '0 8px 25px rgba(16, 185, 129, 0.35)' }}
-      >
-        {completing ? (
-          <>
-            <Loader2 size={20} className="spinner" style={{ width: 20, height: 20 }} /> Completing Trip...
-          </>
-        ) : (
-          <>
-            <CheckCircle2 size={20} /> Complete Trip & Free Toto
-          </>
-        )}
-      </button>
+      {/* Lifecycle Action Buttons */}
+      {trip.status === 'ACCEPTED' ? (
+        <button
+          onClick={handleStartTrip}
+          disabled={starting}
+          className="btn btn-primary"
+          style={{ width: '100%', padding: '1.1rem', fontSize: '1.1rem', boxShadow: '0 8px 25px rgba(59, 130, 246, 0.35)' }}
+        >
+          {starting ? (
+            <>
+              <Loader2 size={20} className="spinner" style={{ width: 20, height: 20 }} /> Starting Pickup...
+            </>
+          ) : (
+            <>
+              <Compass size={20} /> Start Pickup / Journey
+            </>
+          )}
+        </button>
+      ) : (
+        <button
+          onClick={handleCompleteTrip}
+          disabled={completing}
+          className="btn btn-success"
+          style={{ width: '100%', padding: '1.1rem', fontSize: '1.1rem', boxShadow: '0 8px 25px rgba(16, 185, 129, 0.35)' }}
+        >
+          {completing ? (
+            <>
+              <Loader2 size={20} className="spinner" style={{ width: 20, height: 20 }} /> Completing Trip...
+            </>
+          ) : (
+            <>
+              <CheckCircle2 size={20} /> Complete Trip & Free Toto
+            </>
+          )}
+        </button>
+      )}
     </div>
   );
 };

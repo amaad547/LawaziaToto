@@ -62,3 +62,36 @@ export interface ApiError {
   error: string;
   message: string;
 }
+
+export interface AdminOverviewStats {
+  users: {
+    totalUsers: number;
+    totalRiders: number;
+    totalAdmins: number;
+    totalAccounts: number;
+  };
+  requests: {
+    total: number;
+    pending: number;
+    clashes: number;
+  };
+  trips: {
+    total: number;
+    active: number;
+    completed: number;
+  };
+  passengers: {
+    boarded: number;
+    missed: number;
+    totalTracked: number;
+  };
+}
+
+export interface AdminUserItem {
+  id: number | string;
+  name: string;
+  email: string;
+  role: 'USER' | 'RIDER' | 'ADMIN';
+  created_at: string;
+}
+
