@@ -1,25 +1,93 @@
 import React from 'react';
-import { NavigationTab } from '../App';
-import { Car, Send, LayoutDashboard, Compass, UserCheck, History } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import {
+  Car,
+  Send,
+  LayoutDashboard,
+  Compass,
+  History,
+  Clock,
+  ShieldCheck,
+  LogOut,
+  User,
+  Users,
+} from 'lucide-react';
+
+export type ScreenId =
+  // User screens
+  | 'user-dashboard'
+  | 'request'
+  | 'confirmation'
+  | 'user-my-requests'
+  | 'person-history'
+  // Rider screens
+  | 'rider-dashboard'
+  | 'current-trip'
+  | 'rider-history'
+  // Admin screens
+  | 'admin-dashboard'
+  // Auth screens
+  | 'auth-user'
+  | 'auth-rider'
+  | 'auth-admin';
 
 interface NavbarProps {
-  activeTab: NavigationTab;
-  setActiveTab: (tab: NavigationTab) => void;
+  activeScreen: ScreenId;
+  setActiveScreen: (screen: ScreenId) => void;
 }
 
-export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
-  const navItems: { id: NavigationTab; label: string; icon: React.ReactNode }[] = [
-    { id: 'request', label: 'Request Ride', icon: <Send size={18} /> },
-    { id: 'rider-dashboard', label: 'Rider Dashboard', icon: <LayoutDashboard size={18} /> },
-    { id: 'current-trip', label: 'Current Trip', icon: <Compass size={18} /> },
-    { id: 'person-history', label: 'Person History', icon: <UserCheck size={18} /> },
-    { id: 'rider-history', label: 'Rider History', icon: <History size={18} /> },
+export const Navbar: React.FC<NavbarProps> = ({ activeScreen, setActiveScreen }) => {
+  const { user, role, isAuthenticated, logout } = useAuth();
+
+  const handleLogout = () => {
+    logout();
+    setActiveScreen('auth-user');
+  };
+
+  const getUserNavItems = () => [
+    { id: 'user-dashboard' as ScreenId, label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+    { id: 'request' as ScreenId, label: 'Request Ride', icon: <Send size={18} /> },
+    { id: 'user-my-requests' as ScreenId, label: 'My Requests', icon: <Clock size={18} /> },
+    { id: 'person-history' as ScreenId, label: 'History', icon: <History size={18} /> },
   ];
+
+  const getRiderNavItems = () => [
+    { id: 'rider-dashboard' as ScreenId, label: 'Dashboard', icon: <LayoutDashboard size={18} /> },
+    { id: 'current-trip' as ScreenId, label: 'Current Trip', icon: <Compass size={18} /> },
+    { id: 'rider-history' as ScreenId, label: 'History', icon: <History size={18} /> },
+  ];
+
+  const getAdminNavItems = () => [
+    { id: 'admin-dashboard' as ScreenId, label: 'Dashboard', icon: <ShieldCheck size={18} /> },
+  ];
+
+  const getUnauthNavItems = () => [
+    { id: 'auth-user' as ScreenId, label: 'User Portal', icon: <User size={18} /> },
+    { id: 'auth-rider' as ScreenId, label: 'Rider Desk', icon: <Car size={18} /> },
+    { id: 'auth-admin' as ScreenId, label: 'Admin', icon: <ShieldCheck size={18} /> },
+  ];
+
+  const navItems = !isAuthenticated
+    ? getUnauthNavItems()
+    : role === 'USER'
+    ? getUserNavItems()
+    : role === 'RIDER'
+    ? getRiderNavItems()
+    : getAdminNavItems();
 
   return (
     <header className="app-header">
       <div className="header-inner">
-        <a href="#request" onClick={(e) => { e.preventDefault(); setActiveTab('request'); }} className="brand-logo">
+        <div
+          onClick={() => {
+            if (!isAuthenticated) setActiveScreen('auth-user');
+            else if (role === 'USER') setActiveScreen('user-dashboard');
+            else if (role === 'RIDER') setActiveScreen('rider-dashboard');
+            else setActiveScreen('admin-dashboard');
+          }}
+          className="brand-logo"
+          style={{ cursor: 'pointer' }}
+        >
           <div className="logo-badge">
             <Car size={22} />
           </div>
@@ -29,23 +97,48 @@ export const Navbar: React.FC<NavbarProps> = ({ activeTab, setActiveTab }) => {
               Desk & Dispatch
             </span>
           </div>
-        </a>
+        </div>
 
         <nav className="nav-links">
           {navItems.map((item) => (
-            <a
+            <button
               key={item.id}
-              href={`#${item.id}`}
-              onClick={(e) => {
-                e.preventDefault();
-                setActiveTab(item.id);
-              }}
-              className={`nav-link ${activeTab === item.id ? 'active' : ''}`}
+              onClick={() => setActiveScreen(item.id)}
+              className={`nav-link ${activeScreen === item.id ? 'active' : ''}`}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
             >
               {item.icon}
               <span>{item.label}</span>
-            </a>
+            </button>
           ))}
+
+          {/* User profile & Logout */}
+          {isAuthenticated && user && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginLeft: '0.5rem', paddingLeft: '0.75rem', borderLeft: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{user.name}</span>
+                <span
+                  style={{
+                    fontSize: '0.7rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    color: role === 'ADMIN' ? '#f59e0b' : role === 'RIDER' ? '#34d399' : 'var(--primary)',
+                  }}
+                >
+                  {role}
+                </span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="nav-link"
+                title="Logout"
+                style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', border: 'none', cursor: 'pointer' }}
+              >
+                <LogOut size={16} />
+                <span>Logout</span>
+              </button>
+            </div>
+          )}
         </nav>
       </div>
     </header>
