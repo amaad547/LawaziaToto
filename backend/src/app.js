@@ -53,9 +53,10 @@ const frontendDist = path.join(__dirname, '../../frontend/dist');
 app.use(express.static(frontendDist));
 
 // SPA catch-all: serve index.html for non-API routes
-app.get('*', (req, res, next) => {
-  // Don't serve index.html for /api routes — let them fall through to 404
+app.use((req, res, next) => {
+  // Don't serve index.html for /api routes
   if (req.originalUrl.startsWith('/api')) return next();
+
   res.sendFile(path.join(frontendDist, 'index.html'), (err) => {
     if (err) next(); // If file doesn't exist (dev mode), fall through to 404
   });
