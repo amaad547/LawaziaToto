@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: lawazia-toto-desk
+    runtime: node
+    plan: free
+    buildCommand: npm run build --prefix frontend && npm install --prefix backend
+    startCommand: node backend/src/server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: PORT
+        value: 5000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@lawazia.com
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_NAME
+        value: Lawazia Administrator
+      - key: FRONTEND_URL
+        value: "*"

@@ -1,0 +1,12 @@
+{
+  "name": "lawazia-toto-desk",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm install --prefix frontend && npm install --prefix backend && npm run build --prefix frontend && npm run seed:admin --prefix backend",
+    "start": "node backend/src/server.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
